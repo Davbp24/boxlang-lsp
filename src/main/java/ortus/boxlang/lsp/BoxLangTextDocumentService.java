@@ -55,6 +55,7 @@ import ortus.boxlang.lsp.workspace.SemanticTokensContract;
 public class BoxLangTextDocumentService implements TextDocumentService {
 
 	@JsonRequest
+	// Provides project-aware completion items for the document and cursor position.
 	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 
@@ -69,6 +70,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	// Stores newly opened text so language features use the editor buffer rather than
+	// stale file-system contents.
 	public void didOpen( DidOpenTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentOpen(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
@@ -79,6 +82,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	// Applies incremental editor changes and keeps parsing, diagnostics, and navigation
+	// synchronized with the current document.
 	public void didChange( DidChangeTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentChange(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
@@ -87,6 +92,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	// Removes a document from the open-document registry so later operations can use
+	// the file-system version when appropriate.
 	public void didClose( DidCloseTextDocumentParams params ) {
 		ProjectContextProvider.getInstance()
 		    .trackDocumentClose( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
@@ -96,6 +103,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	// Records a save and checks whether the saved file changes LSP configuration,
+	// which can refresh diagnostics and formatting behavior.
 	public void didSave( DidSaveTextDocumentParams params ) {
 		URI						docUri		= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
 		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
@@ -109,6 +118,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@ResponseJsonAdapter( DocumentDiagnosticReportTypeAdapter.class )
+	// Supplies diagnostics through the LSP pull protocol while the project context
+	// owns the actual diagnostic calculation.
 	public CompletableFuture<DocumentDiagnosticReport> diagnostic( DocumentDiagnosticParams params ) {
 
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
@@ -125,6 +136,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@JsonRequest
+	// Computes semantic tokens through the project context so token generation uses
+	// the same parsed source model as the other language features.
 	public CompletableFuture<SemanticTokens> semanticTokensFull( SemanticTokensParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
@@ -143,6 +156,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 * {@link org.eclipse.lsp4j.DocumentFormattingRegistrationOptions}
 	 */
 	@JsonRequest
+	// Formats a complete document using the active formatter configuration resolved
+	// by the project context.
 	public CompletableFuture<List<? extends TextEdit>> formatting( DocumentFormattingParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			App.logger.info( "Received textDocument/formatting request for {} with options tabSize={} insertSpaces={}",
@@ -162,6 +177,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	// Finds declarations for the symbol at the cursor using project-wide AST and index
+	// lookup, allowing definitions to resolve across source files.
 	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
 	    DefinitionParams params ) {
 
@@ -209,6 +226,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	@JsonRequest
 	@ResponseJsonAdapter( DocumentSymbolResponseAdapter.class )
 	@Override
+	// Returns symbols declared in a document for outline views and navigation. The
+	// project context supplies the parsed or cached symbol representation.
 	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
 	    DocumentSymbolParams params ) {
 
@@ -228,6 +247,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@Override
+	// Computes code lenses from project-aware declarations and references in a document.
 	public CompletableFuture<List<? extends CodeLens>> codeLens( CodeLensParams params ) {
 
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
@@ -241,6 +261,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
 	@JsonRequest
 	@ResponseJsonAdapter( CodeActionResponseAdapter.class )
+	// Computes quick fixes and refactorings by combining diagnostics and actions
+	// generated by AST visitors for the requested range.
 	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction( CodeActionParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			var result = ProjectContextProvider.getInstance()
@@ -257,6 +279,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	}
 
 	@JsonRequest
+	// Finds usages of the symbol under the cursor, optionally including its declaration.
 	public CompletableFuture<List<? extends Location>> references( org.eclipse.lsp4j.ReferenceParams params ) {
 		java.net.URI	docURI				= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
 		boolean			includeDeclaration	= params.getContext() != null && params.getContext().isIncludeDeclaration();
@@ -270,6 +293,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@Override
+	// Returns hover documentation and symbol information resolved from the AST and
+	// project index for the position under the cursor.
 	public CompletableFuture<Hover> hover( HoverParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
@@ -283,6 +308,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@Override
+	// Provides parameter and signature information for the invocation at the cursor;
+	// the project context resolves it against indexed declarations.
 	public CompletableFuture<SignatureHelp> signatureHelp( SignatureHelpParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
@@ -298,6 +325,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	// Finds the type declaration associated with the symbol under the cursor, linking
+	// variable usage sites to class definitions across the workspace.
 	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> typeDefinition(
 	    TypeDefinitionParams params ) {
 
@@ -326,6 +355,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	// Finds concrete implementations for an interface or abstract method using the
+	// inheritance and implementation indexes maintained by the project context.
 	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
 	    ImplementationParams params ) {
 
