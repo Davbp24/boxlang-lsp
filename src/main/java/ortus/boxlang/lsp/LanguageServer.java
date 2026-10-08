@@ -98,6 +98,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
+			capabilities.setSelectionRangeProvider(true);
 
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.

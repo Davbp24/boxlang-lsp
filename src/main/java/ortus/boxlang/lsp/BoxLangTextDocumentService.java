@@ -31,6 +31,8 @@ import org.eclipse.lsp4j.ImplementationParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
+import org.eclipse.lsp4j.SelectionRange;
+import org.eclipse.lsp4j.SelectionRangeParams;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SignatureHelp;
@@ -300,6 +302,19 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
 			return ProjectContextProvider.getInstance().getHoverInfo( docURI, params.getPosition() );
 		} );
+	}
+
+	@JsonRequest 
+	@Override 
+	/**
+	 * The selection range request is sent from the client to the server to return
+	 * suggested selection ranges at an array of given positions.
+	 */
+	public CompletableFuture<List<SelectionRange>> selectionRange(SelectionRangeParams params) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().getSelectionRanges(docURI, params.getPositions());
+		}) ;
 	}
 
 	/**

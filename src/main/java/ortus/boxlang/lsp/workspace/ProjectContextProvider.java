@@ -50,6 +50,7 @@ import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
+import org.eclipse.lsp4j.SelectionRange;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureInformation;
@@ -3420,6 +3421,10 @@ public class ProjectContextProvider {
 			    return null;
 		    } )
 		    .orElse( null );
+	}
+
+	public List<SelectionRange> getSelectionRanges(URI docURI, List<Position> positions) {
+		return List.of();
 	}
 
 	/**
