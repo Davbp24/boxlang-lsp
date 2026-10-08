@@ -1,0 +1,60 @@
+package ortus.boxlang.lsp;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.TextDocumentItem;
+import org.junit.jupiter.api.BeforeEach;
+
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
+
+/**
+ * Tests for Document Highlight (BLIDE-320).
+ * Click a local variable or parameter, and every use of it
+ * in the same function should light up. Nothing else.
+ */
+public class DocumentHighlightTest extends BaseTest {
+
+	private static final Path FIXTURE_DIR =
+		Paths.get( "src/test/java/ortus.boxlang.lsp/DocumentHighlightTest" );
+
+	private BoxLangTextDocumentService svc;
+	private String                     fileUri;
+	private String                     fileText;
+
+	@BeforeEach
+	void setUp() throws Exception {
+		// Fresh server and index for every test, so tests don't affect each other
+		svc = new BoxLangTextDocumentService();
+		ProjectIndex index = new ProjectIndex();
+		ProjectContextProvider.getInstance().setIndex( index );
+
+		// Load the fixture file
+		Path file = FIXTURE_DIR.resolve( "Highlight.bx" );
+		fileUri  = file.toUri().toString();
+		fileText = Files.readString( file );
+
+		// Tell the server about it, like VS Code opening the file
+		index.indexFile( file.toUri() );
+		svc.didOpen( new DidOpenTextDocumentParams(
+			new TextDocumentItem( fileUri, "boxlang", 1, fileText ) ) );
+	}
+
+	@Test
+	void highlightsLocalVariableInSameFunction() throws Exception {
+		// Cursor on 'total' in "var total = 0;"
+		DocumentHighlightParams params = new DocumentHighlightParams(
+			new TextDocumentIdentifier( fileUri ), new Position( 3, 12 ) );
+
+		List<? extends DocumentHighlight> highlights = svc.documentHighlight( params ).get();
+
+		assertThat( toRanges( highlights ) ).containsExactly(
+			"3:12-3:17",   // var total
+			"4:8-4:13",    // TOTAL
+			"4:16-4:21"    // Total
+		);
+	}
+}
